@@ -1,0 +1,34 @@
+# Date and time operations
+DateTime==5.4
+
+# Flask for creating web applications
+Flask==3.0.0
+
+# Handling Cross-Origin Resource Sharing (CORS) in Flask applications
+Flask-Cors==4.0.0
+
+# Extended JWT functionality for Flask
+Flask-JWT-Extended==4.6.0
+
+# LightGBM for gradient boost models
+lightgbm==4.2.0
+
+# Numerical operations and scientific computing
+numpy==1.26.3
+
+# Optuna for hyperparameter optimization
+optuna==3.5.0
+
+# Data manipulation and analysis
+pandas==2.1.4
+
+# Scikit-Learn for machine learning
+scikit-learn==1.3.2
+
+# Scientific computing and technical computing
+scipy==1.11.4
+
+# PyTorch for machine learning and neural networks
+torch==2.1.2
+torchaudio==2.1.2
+torchvision==0.16.2
