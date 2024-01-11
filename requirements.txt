@@ -32,3 +32,9 @@ scipy==1.11.4
 torch==2.1.2
 torchaudio==2.1.2
 torchvision==0.16.2
+
+# bcrypt for hashing passwords
+bcrypt==3.2.0
+
+# Cryptographic operations
+cryptography==41.0.7

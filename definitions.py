@@ -5,4 +5,5 @@ RESOURCES_DIR = os.path.join(ROOT_DIR, 'resources')
 MODEL_DIR = os.path.join(RESOURCES_DIR, 'models')
 DATA_DIR = os.path.join(RESOURCES_DIR, 'data')
 OULAD_DATA_DIR = os.path.join(DATA_DIR, 'oulad')
+DATABASE = os.path.join(DATA_DIR, 'database')
 

@@ -1,13 +1,19 @@
 from flask import Blueprint, request, jsonify
 import pandas as pd
 from flask import current_app
-
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 student = Blueprint('student', __name__, url_prefix='/api')
 
 
+
+# Returns list of student's within a specific course.
 @student.route('/studentids')
+@jwt_required()
 def get_student_ids():
+    current_user = get_jwt_identity()
+    print(current_user)
+
     module_code = request.args.get('module_code')
     presentation_code = request.args.get('presentation_code')
 
@@ -32,10 +38,13 @@ def get_student_ids():
 # In progress course analytics: #
 
 
+# This function will returns an individual student's assessment scores over time within a specific course.
 @student.route('/studentassessment')
-# This function will track an individual student's assessment scores over time within a specific course.
+@jwt_required()
 def student_performance_trend():
-    print(request.args.values())
+    current_user = get_jwt_identity()
+    print(current_user)
+
     student_id = int(request.args.get('student_id'))
     code_module = str(request.args.get('code_module'))
     code_presentation = str(request.args.get('code_presentation'))
