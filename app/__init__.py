@@ -15,14 +15,16 @@ def create_app():
     cors = CORS(app)
     app.config['CORS_HEADERS'] = 'Content-Type'
 
-    # # Setup the Flask-JWT-Extended extension
+    # Set up the Flask-JWT-Extended extension
     # app.config['JWT_ALGORITHM'] = 'RS256'
-    #
+
     # # Load the private key with the passphrase
-    # private_key_passphrase = 'your_passphrase_here'
+    # private_key_passphrase = 'Timo1'
     # private_key = open('rs256.pem').read()
     # app.config['JWT_PRIVATE_KEY'] = open('rs256.pem').read()
     # app.config['JWT_PUBLIC_KEY'] = open('rs256.pub').read()
+
+
     app.config['JWT_SECRET_KEY'] = 'RandomKeyTimothy0364'  # Change this to a random secret key!
     jwt = JWTManager(app)
 

@@ -35,7 +35,7 @@ def find_user_by_email(email):
 
 
 def add_user_to_csv(user_id, email, hashed_password):
-    with open('users.csv', 'a', newline='') as file:
+    with open(os.path.join(DATABASE, 'credentials.csv'), 'a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([user_id, email, hashed_password])
 
