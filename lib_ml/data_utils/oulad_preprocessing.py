@@ -73,16 +73,43 @@ def restructure_data(datasets):
                           datasets["vle"][['id_site', 'code_module', 'code_presentation', 'activity_type']],
                           on=['id_site', 'code_module', 'code_presentation'])
 
+    print("Size of DF1", merged_vle.shape)
+    # randstudent = merged_vle[merged_vle['id_student'] == 6516]
+    # print("Example student: ", randstudent['date'])
+
     # Filter out rows where activity_type is 'repeatactivity', because barely any interactions present in dataset
     merged_vle = merged_vle[merged_vle['activity_type'] != 'repeatactivity']
+
+    print("Size of DF2", merged_vle.shape)
+    randstudent = merged_vle[merged_vle['id_student'] == 6516]
+    print("Example student: ", randstudent)
 
     # Ensure the data is sorted by date before calculating the cumulative sum
     merged_vle = merged_vle.sort_values(by=['id_student', 'code_module', 'code_presentation', 'activity_type', 'date'])
 
-    # Aggregate the sum_clicks for each unique combination of indexing columns and date
+    # Aggregate the sum_clicks for each activity type, for a student in a course, at certain date
     aggregated_clicks = \
         merged_vle.groupby(['id_student', 'code_module', 'code_presentation', 'id_site', 'activity_type', 'date'])[
             'sum_click'].sum().reset_index()
+
+    # Create a function to generate a complete date range for each group
+    def generate_date_range(group):
+        min_date = group['date'].min()
+        max_date = group['date'].max()
+        all_dates = pd.DataFrame({'date': range(min_date, max_date + 1)})
+        return group.merge(all_dates, on='date', how='right')
+
+    # Apply the function to each group and fill NaNs with appropriate values
+    complete_data = aggregated_clicks.groupby(['id_student', 'code_module', 'code_presentation']).apply(
+        generate_date_range)
+    complete_data['sum_click'] = complete_data['sum_click'].fillna(0)
+    complete_data = complete_data.drop(columns=['id_student', 'code_module', 'code_presentation']).reset_index()
+
+    # Now complete_data contains rows for every date, with sum_click set to 0 where there were no interactions
+
+    print("Size of DF3", complete_data.shape)
+    randstudent = complete_data[complete_data['id_student'] == 6516]
+    print("Example student: ", randstudent)
 
     # Ensure the data is sorted by date within each group before calculating the cumulative sum
     aggregated_clicks.sort_values(by=['id_student', 'code_module', 'code_presentation', 'activity_type', 'date'],
@@ -93,18 +120,25 @@ def restructure_data(datasets):
         'sum_click'].cumsum()
     aggregated_clicks['cumulative_clicks'] = cumulative_clicks
 
+    print("Size of DF4", aggregated_clicks.shape)
+
     # Pivot the table so that each activity type's cumulative clicks are in separate columns
     pivot_vle = aggregated_clicks.pivot_table(index=['id_student', 'code_module', 'code_presentation', 'date'],
                                               columns='activity_type',
                                               values='cumulative_clicks',
                                               aggfunc='first').reset_index()
 
+    print("Size of DF5", pivot_vle.shape)
+
     # Apply forward fill within each group of 'id_student', 'code_module', 'code_presentation'
-    pivot_vle = pivot_vle.groupby(['id_student', 'code_module', 'code_presentation'], as_index=False).apply(lambda group: group.ffill())
+    pivot_vle = pivot_vle.groupby(['id_student', 'code_module', 'code_presentation'], as_index=False).apply(
+        lambda group: group.ffill())
     # pivot_vle.reset_index(inplace=True)
 
     # After forward fill, replace any remaining NaNs with 0 (for the first occurrence in each group)
     pivot_vle.fillna(0, inplace=True)
+
+    print("Size of DF5", pivot_vle.shape)
 
     # Rename the columns to have a clear format
     pivot_vle.columns = [
@@ -114,6 +148,8 @@ def restructure_data(datasets):
     # Calculate total cumulative clicks for each row
     activity_columns = [col for col in pivot_vle.columns if 'cumulative_clicks_' in col]
     pivot_vle['total_cumulative_clicks'] = pivot_vle[activity_columns].sum(axis=1)
+
+    print("Size of DF6", pivot_vle.shape)
 
     # Merge student_info to bring in additional student details
     final_df = pd.merge(pivot_vle, datasets["student_info"][
@@ -130,12 +166,14 @@ def restructure_data(datasets):
         else:
             final_df[col] = final_df[col].fillna(0)  # Or any other placeholder for numerical data
 
+    print("Size of DF7", pivot_vle.shape)
+
     print("final_df", final_df.columns)
 
     return final_df
 
 
-def preprocess_data(final_df, categorical_cols, features, target_col, DATE=100, label_encoders={}):
+def preprocess_data(final_df, categorical_cols, features, target_col, DATE, label_encoders={}):
     """
     Preprocess the OULAD dataset by encoding categorical columns and filtering by date.
 

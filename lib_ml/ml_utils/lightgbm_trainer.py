@@ -26,10 +26,9 @@ def objective(trial, X, y):
         "bagging_fraction": trial.suggest_float("bagging_fraction", 0.2, 0.95, step=0.1),
         "bagging_freq": trial.suggest_categorical("bagging_freq", [1]),
         "feature_fraction": trial.suggest_float("feature_fraction", 0.2, 0.95, step=0.1),
-        "objective": "multiclass",
-        "num_class": 4,
+        "objective": "binary",
         "verbosity": -1,
-        "metric": "multi_logloss"
+        "metric": "binary_logloss"
     }
 
     train_x, valid_x, train_y, valid_y = train_test_split(X, y, test_size=0.2)
@@ -38,10 +37,13 @@ def objective(trial, X, y):
         lgb.Dataset(train_x, label=train_y),
         valid_sets=[lgb.Dataset(valid_x, label=valid_y)]
     )
+
+    print("Size of valid_x (validation features):", valid_x.shape)
+    print("Size of valid_y (validation target):", valid_y.shape)
+
     preds = gbm.predict(valid_x)
-    print("PREDICTIONS ARRAY 2D or not ?:")
     print(preds)
-    pred_labels = preds.argmax(axis=1)
+    pred_labels = (preds >= 0.5).astype(int)
     accuracy = accuracy_score(valid_y, pred_labels)
     return accuracy
 
@@ -85,9 +87,9 @@ def test_lightgbm(model_path, data, target, features):
     X_test = data[features]
     y_test = data[target]
 
-    preds = model.predict_proba(X_test)
+    preds = model.predict(X_test)
     print(preds)
-    pred_labels = preds.argmax(axis=1)
+    pred_labels = (preds >= 0.5).astype(int)
     print(pred_labels)
     accuracy = accuracy_score(y_test, pred_labels)
 

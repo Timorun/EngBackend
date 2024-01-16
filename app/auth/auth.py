@@ -25,7 +25,7 @@ def login():
                 access_token = create_access_token(identity=user['user_id'], expires_delta=expiry)
                 return jsonify(access_token=access_token)
 
-        return jsonify({"msg": "Bad email or password"}), 401
+        return jsonify({"msg": "Wrong email or password"}), 401
 
 
 @auth_blueprint.route('/register', methods=['POST'])
