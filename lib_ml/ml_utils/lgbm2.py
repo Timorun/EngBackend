@@ -4,12 +4,10 @@ import joblib
 import seaborn as sns
 import pandas as pd
 from lightgbm import LGBMClassifier
-from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
 from definitions import LGBMCLASS, OULAD_DATA_DIR
 from lib_ml.data_utils.oulad_lgbm import preprocess_oulad, labelandsplit
-from lib_ml.data_utils.oulad_preprocessing import load_data
 
 
 def trainlgbm(X_train, y_train):
@@ -30,6 +28,7 @@ def testlgbm(lgbm_classifier, folder, X_test, y_test):
     y_test = labelencoder.inverse_transform(y_test)
     # This is to have labels contains the actual representations of your predictions not encoded
     evaluate(y_test, y_pred)
+    return y_pred
 
 
 # Evaluating the model
@@ -103,30 +102,7 @@ def buildandstoremodel(days=None):
     y_pred = testlgbm(lgbmclassifier, folder, X_test, y_test)
 
     # Get feature importance
-    feature_importance = lgbmclassifier.feature_importances_
-    feature_names = X_train.columns
-
-    # Create a DataFrame for visualization
-    feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': feature_importance})
-
-    print(feature_importance_df)
-
-    # Drop 'id_student', 'code_module_encoded', 'code_presentation_encoded' because not relevant as feature
-    # Setting 'Feature' as the index
-    feature_importance_df.set_index('Feature', inplace=True)
-    # Dropping rows by name
-    # features_to_drop = ['id_student', 'code_module_encoded', 'code_presentation_encoded']
-    # feature_importance_df = feature_importance_df.drop(features_to_drop)
-    # Sort by importance
-    feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
-
-    # Plot
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='Importance', y='Feature', data=feature_importance_df)
-    plt.title('LightGBM Feature Importance')
-    plt.xlabel('Importance')
-    plt.ylabel('Feature')
-    plt.show()
+    # showfeatureimportance(lgbmclassifier, X_train)
 
     return y_test, y_pred
 
@@ -164,14 +140,14 @@ def generate_predictions(days, studentidlist):
 
 
 if __name__ == '__main__':
-    # Set up to which date to train model
-    days = 132
+    # Set up to which date to train model or None
+    days = None
 
     # Build a model
-    # y_test, y_pred = buildandstoremodel(days)
-    # visualizemodel(days, y_test, y_pred)
+    y_test, y_pred = buildandstoremodel(days)
+    visualizemodel(days, y_test, y_pred)
 
     # Generate predictions
-    studentidlist = [141377, 102952, 75091, 62155]
-    predictions = generate_predictions(days, studentidlist)
-    print(predictions)
+    # studentidlist = [141377, 102952, 75091, 62155]
+    # predictions = generate_predictions(days, studentidlist)
+    # print(predictions)

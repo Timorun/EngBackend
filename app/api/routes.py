@@ -38,7 +38,7 @@ def get_student_ids():
 # In progress course analytics: #
 
 
-# This function will returns an individual student's assessment scores over time within a specific course.
+# This function will return an individual student's assessment scores over time within a specific course.
 @student.route('/studentassessment')
 @jwt_required()
 def student_performance_trend():
@@ -145,26 +145,4 @@ def assessment_submission_timeliness():
 #     student_data = presentation_data[presentation_data['id_student'] == student_id]
 #     comparison_data = pd.merge(student_data, avg_scores, on='id_assessment')
 #     return comparison_data[['id_assessment', 'score', 'avg_score']]
-#
-#
-#
-#
-#
-#
-# if __name__ == '__main__':
-#     data = loaddata()
-#
-#     # performance_data = student_performance_trend(1398489, 'FFF', '2014B', data['assessments'], data['student_assessment'])
-#     # print(performance_data)
-#
-#
-#     # engagement_data = student_engagement_trend(1398489,'FFF', '2014B', data['student_vle'])
-#     # print(engagement_data)
-#
-#
-#     submission_timeliness = assessment_submission_timeliness(1398489,'FFF', '2014B', data['assessments'], data['student_assessment'])
-#     print(submission_timeliness)
-#
-#
-#     comparison = comparison_with_peers(1398489, 'FFF', '2014B', data['assessments'], data['student_assessment'])
-#     print(comparison)
+

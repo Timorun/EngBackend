@@ -3,11 +3,11 @@ import seaborn as sns
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-
 from definitions import OULAD_DATA_DIR
 from lib_ml.data_utils.oulad_preprocessing import load_data
 
 
+# Restructure and preprocess the data to have a dataframe at certain days, with total clicks, std clicks and avg per day
 def preprocess_oulad(days, use, studentlist):
     datasets = load_data(data_folder=OULAD_DATA_DIR)
 
@@ -15,7 +15,7 @@ def preprocess_oulad(days, use, studentlist):
     student_vle = datasets['student_vle']
     student_vle = student_vle[student_vle['date'] < days]
 
-    #if not training model
+    # if not training model
     if use:
         # filter to studentlist, and sort to studentlist order
         student_vle = student_vle[student_vle['id_student'].isin(studentlist)]
@@ -29,7 +29,7 @@ def preprocess_oulad(days, use, studentlist):
     #     student_vle = student_vle[student_vle['code_presentation'] != '2014J']
 
     # Aggregating the data at a student-module-presentation level with features total clicks, avgclicks p day, days interacted and std clicks per day
-    agg_features = student_vle.groupby(['id_student', 'code_module', 'code_presentation']).agg(
+    agg_features = student_vle.groupby(['id_student', 'code_module', 'code_presentation'], observed=False).agg(
         total_clicks=pd.NamedAgg(column='sum_click', aggfunc='sum'),
         avg_clicks_per_day=pd.NamedAgg(column='sum_click', aggfunc='mean'),
         days_interacted=pd.NamedAgg(column='date', aggfunc=lambda x: len(set(x))),

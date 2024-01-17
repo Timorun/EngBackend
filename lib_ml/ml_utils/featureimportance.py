@@ -8,19 +8,15 @@ import seaborn as sns
 from definitions import LGBMCLASS
 
 
-def feature_importance(path):
-    # Load the saved LabelEncoder
-    lgbm_classifier = joblib.load(path)
-
-    # Get feature importance
-    feature_importance = lgbm_classifier.feature_importances_
-    print(feature_importance)
-    feature_names = ['total_clicks', 'avg_clicks_per_day', 'days_interacted',
-                 'std_clicks_per_day', 'code_module_encoded', 'code_presentation_encoded']
+def showfeatureimportance(lgbmclassifier, X_train):
+    feature_importance = lgbmclassifier.feature_importances_
+    feature_names = X_train.columns
 
     # Create a DataFrame for visualization
     feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': feature_importance})
-
+    print(feature_importance_df)
+    # Setting 'Feature' as the index
+    feature_importance_df.set_index('Feature', inplace=True)
     # Sort by importance
     feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
 
