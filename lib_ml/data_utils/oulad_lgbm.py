@@ -1,4 +1,5 @@
 # Data processing in attempt to build LGBM with simpler features
+import numpy as np
 import seaborn as sns
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -61,15 +62,20 @@ def preprocess_oulad(days, use, studentlist):
     return merged_data
 
 
-def labelandsplit(merged_data):
-    # Encode the 3 categorical variables in one label encoder as values are exclusive per column
-    all_categories = pd.concat([merged_data['final_result'],
-                                merged_data['code_module'],
-                                merged_data['code_presentation']])
+# Encode categorical labels, final result, module and presentation code, set values final res needed for LGBM: 0 to 3
+def encodeandlabel(merged_data):
+    # Assume merged_data is your DataFrame
+    unique_code_module = merged_data['code_module'].unique()
+    unique_code_presentation = merged_data['code_presentation'].unique()
 
+    # Combine all unique values, making sure 'Withdrawn', 'Fail', 'Pass', 'Distinction' are first
+    combined_classes = ['Withdrawn', 'Fail', 'Pass', 'Distinction'] + list(set(unique_code_module) | set(unique_code_presentation))
+
+    # Create and set up the LabelEncoder with combined classes
     label_encoder = LabelEncoder()
-    label_encoder.fit(all_categories)
+    label_encoder.classes_ = np.array(combined_classes)
 
+    # Encode the columns
     merged_data['final_result_encoded'] = label_encoder.transform(merged_data['final_result'])
     merged_data['code_module_encoded'] = label_encoder.transform(merged_data['code_module'])
     merged_data['code_presentation_encoded'] = label_encoder.transform(merged_data['code_presentation'])
@@ -81,7 +87,4 @@ def labelandsplit(merged_data):
     X = encoded_data.drop('final_result_encoded', axis=1)
     y = encoded_data['final_result_encoded']
 
-    # Split into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-    return X_train, X_test, y_train, y_test, label_encoder
+    return X, y, label_encoder
