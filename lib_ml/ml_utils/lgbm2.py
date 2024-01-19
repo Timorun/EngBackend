@@ -21,37 +21,41 @@ def trainlgbm(X_train, y_train):
     return lgbm_classifier
 
 
-# Simple lgbm testing after fitting model
+# Function to use lgbm to predict and evaluate prediction
 def testlgbm(folder, X_test, y_test):
+    # Load the classifier
     lgbm_classifier = joblib.load(os.path.join(folder, 'lgbmclassifier.pkl'))
+    # Load the saved LabelEncoder
+    labelencoder = joblib.load(os.path.join(folder, 'label_encoder.pkl'))
+
+    # change labels to encoded
+    X_test['code_module_encoded'] = labelencoder.transform(X_test['code_module'])
+    X_test['code_presentation_encoded'] = labelencoder.transform(X_test['code_presentation'])
+
+    # Drop categorical columns
+    X_test = X_test.drop(['code_module', 'code_presentation'], axis=1)
+
+    y_test = labelencoder.transform(y_test)
 
     # Predicting on the test set
     y_pred = lgbm_classifier.predict(X_test)
-
-    # Load the saved LabelEncoder
-    labelencoder = joblib.load(os.path.join(folder, 'label_encoder.pkl'))
-    # change labels to actual final result
-    # y_pred = labelencoder.inverse_transform(y_pred)
-    # y_test = labelencoder.inverse_transform(y_test)
-    # This is to have labels contains the actual representations of your predictions not encoded
-    print(y_test)
     print(y_pred)
+    y_pred = y_pred.argmax(axis=1)
+    print(y_pred)
+
     print(evaluate(y_test, y_pred, labelencoder))
     return y_pred
 
 
-# Global variables to evaluate model after finding the best params
-global ytest, ypred
-best_accuracy = 0
+# # Global variables to evaluate model after finding the best params
+# global ytest, ypred
+# best_accuracy = 0
 
 
+# Objective function for hyperparameter tuning using Optuna for LightGBM.
 def objective(trial, X, y):
-    global ytest, ypred, best_accuracy
-    """
-    Objective function for hyperparameter tuning using Optuna for LightGBM.
-    """
     param_grid = {
-        "n_estimators": trial.suggest_categorical("n_estimators", [10000]),
+        "n_estimators": trial.suggest_categorical("n_estimators", [100, 10000]),
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
         "num_leaves": trial.suggest_int("num_leaves", 20, 3000, step=20),
         "max_depth": trial.suggest_int("max_depth", 3, 12),
@@ -76,31 +80,30 @@ def objective(trial, X, y):
         valid_sets=[lgb.Dataset(X_test, label=y_test)]
     )
     preds = gbm.predict(X_test)
-    # print(preds)
+    print(preds)
     pred_labels = preds.argmax(axis=1)
-    # print(pred_labels)
+    print(pred_labels)
     accuracy = accuracy_score(y_test, pred_labels)
-    if accuracy > best_accuracy:
-        best_accuracy = accuracy
-        ytest = y_test
-        ypred = pred_labels
 
     return accuracy
 
 
+# Train a LightGBM model with hyperparameter tuning and save the model, best parameters, and accuracy.
 def adv_trainlightgbm(X, y, folder, labelencoder, n_trials=100):
-    """
-    Train a LightGBM model with hyperparameter tuning and save the model, best parameters, and accuracy.
-    """
-
     study = optuna.create_study(direction='maximize')
     study.optimize(lambda trial: objective(trial, X, y), n_trials=n_trials)
 
+    bestaccuracy = study.best_value
     best_params = study.best_params
-    # best_accuracy = study.best_value
+    best_params['objective'] = 'multiclass'
+    best_params['num_class'] = 4
+    best_params['metric'] = 'multi_logloss'
     final_model = lgb.train(best_params, lgb.Dataset(X, label=y))
 
-    evaluation = evaluate(ytest, ypred, labelencoder)
+    # Evaluate the model
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    predictions = final_model.predict(X_test).argmax(axis=1)
+    evaluation = evaluate(y_test, predictions, labelencoder)
 
     os.makedirs(folder, exist_ok=True)
 
@@ -115,12 +118,12 @@ def adv_trainlightgbm(X, y, folder, labelencoder, n_trials=100):
     with open(os.path.join(folder, 'evaluation_result.txt'), 'w') as f:
         f.write(evaluation)
 
-    # # Save the best accuracy
-    # with open(os.path.join(folder, 'lightgbm_best_accuracy.txt'), 'w') as f:
-    #     f.write(f"Best Accuracy: {best_accuracy}")
+    # Save the best accuracy
+    with open(os.path.join(folder, 'lightgbm_best_accuracy.txt'), 'w') as f:
+        f.write(f"Best Accuracy: {bestaccuracy}")
 
-    global best_accuracy
-    best_accuracy = 0
+    # global best_accuracy
+    # best_accuracy = 0
 
     return final_model
 
@@ -145,7 +148,6 @@ def evaluate(y_test, y_pred, labelencoder):
     )
 
     return result
-
 
 
 # Print rand student results and predicted result
@@ -190,13 +192,11 @@ def buildandstoremodel(days=None):
     # set to 300 as all courses have less than that
 
     # Preprocess the data
-    merged_data = preprocess_oulad(days, False, None)
+    merged_data = preprocess_oulad(days, None)
 
     X, y, labelencoder = encodeandlabel(merged_data)
     # Store labelencoder
     joblib.dump(labelencoder, os.path.join(folder, 'label_encoder.pkl'))
-    print(labelencoder.classes_)
-    print(labelencoder)
 
     # # Train and store classifier (SIMPLE Model fitting)
     # # split into training and testing sets
@@ -213,14 +213,20 @@ def buildandstoremodel(days=None):
     lgbmclassifier = adv_trainlightgbm(X, y, folder, labelencoder, 100)
 
 
+# Given a list of students and how many days into the course we are, return predictions of final result
+# Requires model to be trained on specific date beforehand.
 def generate_predictions(days, studentidlist):
-    path = os.path.join(LGBMCLASS, f'classifierdate{days}')
+    path = os.path.join(LGBMCLASS, f'advclassifierdate{days}')
+    if days is None:
+        path = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+        days = 300
     # Load the trained classifier
     classifier = joblib.load(os.path.join(path, 'lgbmclassifier.pkl'))
 
     # Preprocess the new data (this function should be the same as used during training)
     # Make sure to include all necessary preprocessing steps
-    preprocessed_data = preprocess_oulad(days, True, studentidlist)  # Replace with your actual preprocessing function
+    preprocessed_data = preprocess_oulad(days, studentidlist)
+    print(preprocessed_data)
 
     # Encode categorical values with label_encoder used when building the model
     labelencoder = joblib.load(os.path.join(path, 'label_encoder.pkl'))
@@ -231,7 +237,10 @@ def generate_predictions(days, studentidlist):
     encoded_data = preprocessed_data.drop(['code_module', 'code_presentation', 'final_result'], axis=1)
 
     # Generate predictions
-    predictions = classifier.predict(encoded_data)
+    preds = classifier.predict(encoded_data)
+    print(preds)
+    predictions = preds.argmax(axis=1)
+    print(predictions)
 
     # Convert numerical predictions back to labels
     labelencoder = joblib.load(os.path.join(path, 'label_encoder.pkl'))
@@ -240,18 +249,57 @@ def generate_predictions(days, studentidlist):
     return predictions
 
 
+# Evaluate model by retraining it with the best params in the folder
+def evaluateparamsmodel():
+    folder = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+    # folder = os.path.join(LGBMCLASS, f'archive/advclassifierdatetotal')
+
+    # Load labelencoder
+    labelencoder = joblib.load(os.path.join(folder, 'label_encoder.pkl'))
+
+    # Preprocess the data
+    merged_data = preprocess_oulad(300, None)
+    # Encode the columns
+    merged_data['final_result_encoded'] = labelencoder.transform(merged_data['final_result'])
+    merged_data['code_module_encoded'] = labelencoder.transform(merged_data['code_module'])
+    merged_data['code_presentation_encoded'] = labelencoder.transform(merged_data['code_presentation'])
+    # Drop original categorical columns
+    encoded_data = merged_data.drop(['code_module', 'code_presentation', 'final_result'], axis=1)
+
+    X = encoded_data[
+        ['code_module_encoded', 'code_presentation_encoded', 'total_clicks', 'avg_clicks_per_day', 'days_interacted',
+         'std_clicks_per_day']]
+    y = encoded_data['final_result_encoded']
+
+    # Load parameters from JSON file
+    with open(os.path.join(folder, 'lightgbm_best_params.json'), 'r') as f:
+        best_params = json.load(f)
+    best_params['objective'] = 'multiclass'
+    best_params['num_class'] = 4
+    best_params['metric'] = 'multi_logloss'
+    final_model = lgb.train(best_params, lgb.Dataset(X, label=y))
+    # Make predictions
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    predictions = final_model.predict(X_test).argmax(axis=1)
+    # evaluate model performance
+    evaluation = evaluate(y_test, predictions, labelencoder)
+    print(evaluation)
+
+
 if __name__ == '__main__':
     # Set up to which date to train model or None
     days = None
 
     # Build a model
-    buildandstoremodel(days)
-    buildandstoremodel(132)
-    buildandstoremodel(85)
-    buildandstoremodel(56)
-    buildandstoremodel(35)
+    # buildandstoremodel(days)
+    # buildandstoremodel(132)
+    # buildandstoremodel(85)
+    # buildandstoremodel(56)
+    # buildandstoremodel(35)
+
+    evaluateparamsmodel()
 
     # Generate predictions
     # studentidlist = [141377, 102952, 75091, 62155]
-    # predictions = generate_predictions(days, studentidlist)
+    # predictions = generate_predictions(None, studentidlist)
     # print(predictions)

@@ -9,7 +9,8 @@ from lib_ml.data_utils.oulad_preprocessing import load_data
 
 
 # Restructure and preprocess the data to have a dataframe at certain days, with total clicks, std clicks and avg per day
-def preprocess_oulad(days, use, studentlist):
+# If student list provided then filter to those ids
+def preprocess_oulad(days, studentlist):
     datasets = load_data(data_folder=OULAD_DATA_DIR)
 
     # Filter out data after set date
@@ -17,17 +18,14 @@ def preprocess_oulad(days, use, studentlist):
     student_vle = student_vle[student_vle['date'] < days]
 
     # if not training model
-    if use:
+    if studentlist is not None:
         # filter to studentlist, and sort to studentlist order
         student_vle = student_vle[student_vle['id_student'].isin(studentlist)]
         # Sort the DataFrame according to the order in studentlist
         # Convert 'id_student' to a categorical variable with specified order
         student_vle['id_student'] = pd.Categorical(student_vle['id_student'], categories=studentlist, ordered=True)
         student_vle = student_vle.sort_values('id_student')
-    #     # Filter to only rows code_presentation '2014J', we don't train with last semester data on which we will test the model
-    #     student_vle = student_vle[student_vle['code_presentation'] == '2014J']
-    # else:
-    #     student_vle = student_vle[student_vle['code_presentation'] != '2014J']
+
 
     # Aggregating the data at a student-module-presentation level with features total clicks, avgclicks p day, days interacted and std clicks per day
     agg_features = student_vle.groupby(['id_student', 'code_module', 'code_presentation'], observed=False).agg(

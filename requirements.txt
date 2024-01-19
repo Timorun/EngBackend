@@ -38,3 +38,7 @@ bcrypt==3.2.0
 
 # Cryptographic operations
 cryptography==41.0.7
+
+# Flask - SQLAlchemy
+Flask-SQLAlchemy==3.1.1
+
