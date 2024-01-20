@@ -23,17 +23,28 @@ def preprocess_oulad(days, studentlist):
         student_vle['id_student'] = pd.Categorical(student_vle['id_student'], categories=studentlist, ordered=True)
         student_vle = student_vle.sort_values('id_student')
 
-    # Aggregating the data at a student-module-presentation level with features total clicks, avgclicks p day,
-    # days interacted and std clicks per day
-    agg_features = student_vle.groupby(['id_student', 'code_module', 'code_presentation'], observed=False).agg(
+    # Aggregating the data at a student-module-presentation level with features total clicks, days interacted
+    # and std of clicks per week.
+    # Calculate days_interacted
+    days_interacted = student_vle.groupby(['id_student', 'code_module', 'code_presentation'])[
+        'date'].nunique().reset_index(name='days_interacted')
+
+    # Calculate week
+    student_vle['week'] = student_vle['date'] // 7
+    # Group by student, module, presentation, and week, and aggregate clicks
+    weekly_clicks = student_vle.groupby(['id_student', 'code_module', 'code_presentation', 'week'])[
+        'sum_click'].sum().reset_index()
+
+    # Now group by student, module, and presentation to calculate the standard deviation of weekly clicks
+    agg_features = weekly_clicks.groupby(['id_student', 'code_module', 'code_presentation']).agg(
         total_clicks=pd.NamedAgg(column='sum_click', aggfunc='sum'),
-        avg_clicks_per_day=pd.NamedAgg(column='sum_click', aggfunc='mean'),
-        days_interacted=pd.NamedAgg(column='date', aggfunc=lambda x: len(set(x))),
-        std_clicks_per_day=pd.NamedAgg(column='sum_click', aggfunc='std')
+        std_weekly_clicks=pd.NamedAgg(column='sum_click', aggfunc='std')
     ).reset_index()
+    # Merge with days_interacted
+    agg_features = agg_features.merge(days_interacted, on=['id_student', 'code_module', 'code_presentation'])
 
     # Filling NaN values in std_clicks_per_day with 0 (occurs when a student has interactions on only one day)
-    agg_features['std_clicks_per_day'].fillna(0, inplace=True)
+    agg_features['std_weekly_clicks'].fillna(0, inplace=True)
 
     # Display the first few rows of the aggregated features
     agg_features.head()

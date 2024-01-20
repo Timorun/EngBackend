@@ -7,7 +7,7 @@ from definitions import OULAD_DATA_DIR
 
 from lib_ml.data_utils.oulad_preprocessing import load_data
 from lib_data.create import createcredentials, createaccess
-from .api.lightgbm import lgbmblueprint
+from .api.lgbmroute import lgbmblueprint
 from .api.routes import dataroute
 from .api.courseaccess import courseblueprint
 from .auth.auth import auth_blueprint

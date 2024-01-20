@@ -190,8 +190,8 @@ def buildandstoremodel(days=None):
     if days is None:
         days = "total"
 
-    # folder = os.path.join(LGBMCLASS, f'advclassifierdate{days}')
-    folder = os.path.join(LGBMCLASS, f'400trialsclassifierdate{days}')
+    folder = os.path.join(LGBMCLASS, f'finalclassifierdate{days}')
+    # folder = os.path.join(LGBMCLASS, f'400trialsclassifierdate{days}')
     os.makedirs(folder, exist_ok=True)
     if days == "total":
         days = 300
@@ -216,15 +216,15 @@ def buildandstoremodel(days=None):
     # visualizemodel(days, y_test, y_pred)
 
     # More advanced LGBM training with Optuna
-    lgbmclassifier = adv_trainlightgbm(X, y, folder, labelencoder, 400)
+    lgbmclassifier = adv_trainlightgbm(X, y, folder, labelencoder, 100)
 
 
 # Given a list of students and how many days into the course we are, return predictions of final result
 # Requires model to be trained on specific date beforehand.
 def generate_predictions(days, studentidlist):
-    path = os.path.join(LGBMCLASS, f'advclassifierdate{days}')
+    path = os.path.join(LGBMCLASS, f'finalclassifierdate{days}')
     if days is None:
-        path = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+        path = os.path.join(LGBMCLASS, f'finalclassifierdatetotal')
         days = 300
     # Load the trained classifier
     classifier = joblib.load(os.path.join(path, 'lgbmclassifier.pkl'))
@@ -257,7 +257,8 @@ def generate_predictions(days, studentidlist):
 
 # Evaluate model by retraining it with the best params in the folder
 def evaluateparamsmodel():
-    # folder = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+    folder = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+    folder = os.path.join(LGBMCLASS, f'FIXadvclassifierdatetotal')
     # folder = os.path.join(LGBMCLASS, f'200trialsclassifierdatetotal')
     # folder = os.path.join(LGBMCLASS, f'archive/advclassifierdatetotal')
 
@@ -274,8 +275,8 @@ def evaluateparamsmodel():
     encoded_data = merged_data.drop(['code_module', 'code_presentation', 'final_result'], axis=1)
 
     X = encoded_data[
-        ['code_module_encoded', 'code_presentation_encoded', 'total_clicks', 'avg_clicks_per_day', 'days_interacted',
-         'std_clicks_per_day']]
+        ['code_module_encoded', 'code_presentation_encoded', 'total_clicks', 'days_interacted',
+         'std_weekly_clicks']]
     y = encoded_data['final_result_encoded']
 
     # Load parameters from JSON file
