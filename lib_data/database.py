@@ -1,3 +1,4 @@
+import base64
 import datetime
 import decimal
 import json
@@ -6,13 +7,7 @@ import time
 import csv
 import bcrypt
 from definitions import DATABASE
-import sqlalchemy as db
 
-# from lib_utils.utils import MyException
-# from app.sql_init import sql_engine
-
-
-# TODO Change this to using .csv files
 
 def hash_password(password):
     hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -20,109 +15,49 @@ def hash_password(password):
 
 
 def check_password(password, hashed_password):
-    print("password: "+str(password))
-    print("hashed_password: "+str(hashed_password))
+    # print("password: " + str(password))
+    # print("hashed_password: " + str(hashed_password))
     return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
-def find_user_by_email(email):
+def find_user_by_email(cipher_suite, email):
     with open(os.path.join(DATABASE, 'credentials.csv'), 'r') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            if row['email'] == email:
-                return row
+            # print(cipher_suite)
+            decrypted_row = [cipher_suite.decrypt(base64.urlsafe_b64decode(column)).decode() for column in row.values()]
+            # print(decrypted_row)
+            if decrypted_row[1] == email:  # Assuming email is the second column
+                return {
+                    'user_id': decrypted_row[0],
+                    'email': decrypted_row[1],
+                    'hashed_password': decrypted_row[2]
+                }
     return None
 
 
-def add_user_to_csv(user_id, email, hashed_password):
+def add_user_to_csv(cipher_suite, user_id, email, hashed_password):
+    encrypted_row = [base64.urlsafe_b64encode(cipher_suite.encrypt(str(column).encode())).decode() for column in [user_id, email, hashed_password]]
     with open(os.path.join(DATABASE, 'credentials.csv'), 'a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([user_id, email, hashed_password])
+        writer.writerow(encrypted_row)
 
 
-
-
-#
-# def db_insertUser(json_obj):
-#     try:
-#         ts = time.time()
-#         timestamp = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-#         date_created = date_modified = date_last_access = timestamp
-#         conn = sql_engine.connect()
-#         metadata = db.MetaData(bind=sql_engine)
-#         table = db.Table("users", metadata, autoload=True)
-#         query_verify = db.select(table.c.email).where(
-#             table.c.email == json_obj["email"]
-#         )
-#         emails = conn.execute(query_verify).fetchall()
-#         if len(emails) > 0:
-#             print("Email address is already in use: ", json_obj["email"])
-#             raise MyException(
-#                 "This email address is already in use. Please use another one"
-#             )
-#         password = encryptPassword(json_obj["password"])
-#         settings = {}
-#         query = db.insert(table).values(
-#             user_id=None,
-#             first_name=json_obj["first_name"],
-#             last_name=json_obj["last_name"],
-#             email=json_obj["email"],
-#             password=password,
-#             birthday=json_obj["birthday"],
-#             admin=json_obj["admin"],
-#             role=json_obj["role"],
-#             feedback=json_obj["feedback"],
-#             settings=settings,
-#             description=json_obj["description"],
-#             date_created=date_created,
-#             date_last_access=date_last_access,
-#             date_modified=date_modified,
-#         )
-#         conn.execute(query)
-#         batch_id = conn.execute("SELECT LAST_INSERT_ID() AS id").fetchone()
-#         return batch_id["id"]
-#
-#     except Exception as e:
-#         raise e
-#
-#
-# def db_verifyUser(json_obj):
-#     try:
-#         if "email" not in json_obj:
-#             raise MyException("Valid email address not provided")
-#         if "password" not in json_obj:
-#             raise MyException("Valid password not provided")
-#         conn = sql_engine.connect()
-#         metadata = db.MetaData(bind=sql_engine)
-#         table = db.Table("users", metadata, autoload=True)
-#         query_verify = db.select(
-#             table.c.user_id,
-#             table.c.password,
-#         ).where(table.c.email == json_obj["email"])
-#         emails = conn.execute(query_verify).fetchall()
-#         if len(emails) == 0:
-#             print("User does not exist: ", json_obj["email"])
-#             raise MyException(
-#                 "This email address is not registered as a Reef.io member"
-#             )
-#         for (
-#                 user_id,
-#                 password,
-#         ) in emails:
-#             if verifyPassword(json_obj["password"], password):
-#                 ts = time.time()
-#                 timestamp = datetime.datetime.fromtimestamp(ts).strftime(
-#                     "%Y-%m-%d %H:%M:%S"
-#                 )
-#                 date_last_access = timestamp
-#                 query = (
-#                     db.update(table)
-#                     .values(date_last_access=date_last_access)
-#                     .where(table.c.user_id == user_id)
-#                 )
-#                 conn.execute(query)
-#                 return db_getUser(user_id)
-#         raise MyException("Invalid email/password combination")
-#
-#     except Exception as e:
-#         raise e
+# Check if JWT user has is allowed to access module and presentation
+def accesscheck(cipher_suite, userid, modulecode, presentationcode):
+    try:
+        with open(os.path.join(DATABASE, 'courseaccess.csv'), 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header row
+            for row in reader:
+                encrypted_row = row[0]
+                decrypted_row_str = cipher_suite.decrypt(base64.urlsafe_b64decode(encrypted_row)).decode()
+                decrypted_row = decrypted_row_str.split(',')
+                if (decrypted_row[0] == userid and
+                        decrypted_row[1] == modulecode and
+                        decrypted_row[2] == presentationcode):
+                    # Append a tuple of (module_code, presentation_code) to the courses list
+                    return True
+    except IOError:
+        return False
+    return False

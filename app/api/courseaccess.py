@@ -1,10 +1,12 @@
+import base64
 import csv
 import os
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from definitions import DATABASE
+from lib_data.database import accesscheck
 
 courseblueprint = Blueprint('courseaccess', __name__, url_prefix='/api')
 
@@ -21,12 +23,18 @@ def get_courses():
 
     try:
         with open(os.path.join(DATABASE, 'courseaccess.csv'), 'r') as file:
-            reader = csv.DictReader(file)
+            reader = csv.reader(file)
+            next(reader)  # Skip header row
             for row in reader:
-                if row['user_id'] == current_user:
-                    course_info = (row['module_code'], row['presentation_code'])
+                encrypted_row = row[0]
+                decrypted_row_str = current_app.cipher_suite.decrypt(base64.urlsafe_b64decode(encrypted_row)).decode()
+                decrypted_row = decrypted_row_str.split(',')
+
+                if decrypted_row[0] == str(current_user):
+                    course_info = (decrypted_row[1], decrypted_row[2])
                     if course_info not in accessible_courses:
                         accessible_courses.append(course_info)
+
 
     except IOError:
         return jsonify({"error": "Failed to read course data"}), 500
@@ -50,21 +58,12 @@ def checkcourseaccess():
     if not module_code or not presentation_code:
         return jsonify({"error": "Module code and presentation code are required"}), 400
 
-    courses = []
+    access = accesscheck(current_app.cipher_suite, current_user, module_code, presentation_code)
 
-    try:
-        with open(os.path.join(DATABASE, 'courseaccess.csv'), 'r') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if (row['user_id'] == current_user and
-                        row['module_code'] == module_code and
-                        row['presentation_code'] == presentation_code):
-                    # Append a tuple of (module_code, presentation_code) to the courses list
-                    return jsonify({
-                        "message": "Accessing data Course: " + str(module_code) + str(presentation_code),
-                        "access": True
-                    })
-                    courses.append((module_code, presentation_code))
-
-    except IOError:
+    if access:
+        return jsonify({
+            "message": "Accessing data Course: " + str(module_code) + str(presentation_code),
+            "access": True
+        })
+    else:
         return jsonify({"error": "Failed to read course data"}), 500

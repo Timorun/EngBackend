@@ -1,16 +1,14 @@
-import os
-
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from flask_sqlalchemy import SQLAlchemy
+from cryptography.fernet import Fernet
 
-from definitions import OULAD_DATA_DIR, SQL_DIR
+from definitions import OULAD_DATA_DIR
 
 from lib_ml.data_utils.oulad_preprocessing import load_data
+from lib_data.create import createcredentials, createaccess
 from .api.lightgbm import lgbmblueprint
-
-from .api.routes import student
+from .api.routes import dataroute
 from .api.courseaccess import courseblueprint
 from .auth.auth import auth_blueprint
 
@@ -23,16 +21,22 @@ def create_app():
     app.config['JWT_SECRET_KEY'] = 'RandomKeyTimothy0364'  # random secret key
     jwt = JWTManager(app)
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = ('sqlite:///'+os.path.join(SQL_DIR, 'database.db'))
-    app.db = SQLAlchemy(app)
+    # Generate a key
+    key = Fernet.generate_key()
+    cipher_suite = Fernet(key)
+    app.cipher_suite = cipher_suite
 
-    # Load and attach the dataset to the app object
-    app.datasets = load_data(data_folder=OULAD_DATA_DIR)
+    # Load and attach the OULAD dataset to the app object
+    datasets = load_data(data_folder=OULAD_DATA_DIR)
+    app.datasets = datasets
 
-    app.register_blueprint(student)
+    # Initialize and encrypt credentials and access tables
+    createcredentials(app.cipher_suite)
+    createaccess(app.cipher_suite)
+
+    app.register_blueprint(dataroute)
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(courseblueprint)
     app.register_blueprint(lgbmblueprint)
 
     return app
-

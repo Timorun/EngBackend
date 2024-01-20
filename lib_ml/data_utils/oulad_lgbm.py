@@ -1,8 +1,5 @@
-# Data processing in attempt to build LGBM with simpler features
 import numpy as np
-import seaborn as sns
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from definitions import OULAD_DATA_DIR
 from lib_ml.data_utils.oulad_preprocessing import load_data
@@ -26,8 +23,8 @@ def preprocess_oulad(days, studentlist):
         student_vle['id_student'] = pd.Categorical(student_vle['id_student'], categories=studentlist, ordered=True)
         student_vle = student_vle.sort_values('id_student')
 
-
-    # Aggregating the data at a student-module-presentation level with features total clicks, avgclicks p day, days interacted and std clicks per day
+    # Aggregating the data at a student-module-presentation level with features total clicks, avgclicks p day,
+    # days interacted and std clicks per day
     agg_features = student_vle.groupby(['id_student', 'code_module', 'code_presentation'], observed=False).agg(
         total_clicks=pd.NamedAgg(column='sum_click', aggfunc='sum'),
         avg_clicks_per_day=pd.NamedAgg(column='sum_click', aggfunc='mean'),
@@ -67,7 +64,8 @@ def encodeandlabel(merged_data):
     unique_code_presentation = merged_data['code_presentation'].unique()
 
     # Combine all unique values, making sure 'Withdrawn', 'Fail', 'Pass', 'Distinction' are first
-    combined_classes = ['Withdrawn', 'Fail', 'Pass', 'Distinction'] + list(set(unique_code_module) | set(unique_code_presentation))
+    combined_classes = ['Withdrawn', 'Fail', 'Pass', 'Distinction'] + list(
+        set(unique_code_module) | set(unique_code_presentation))
 
     # Create and set up the LabelEncoder with combined classes
     label_encoder = LabelEncoder()

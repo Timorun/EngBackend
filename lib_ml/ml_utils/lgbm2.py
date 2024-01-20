@@ -1,9 +1,12 @@
 import json
 import os
+from io import StringIO
 
 import joblib
 import optuna
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from lightgbm import LGBMClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 import lightgbm as lgb
@@ -11,6 +14,7 @@ from sklearn.model_selection import train_test_split
 
 from definitions import LGBMCLASS
 from lib_ml.data_utils.oulad_lgbm import preprocess_oulad, encodeandlabel
+from lib_ml.ml_utils.featureimportance import showfeatureimportance
 
 
 # Simple lgbm training
@@ -55,18 +59,18 @@ def testlgbm(folder, X_test, y_test):
 # Objective function for hyperparameter tuning using Optuna for LightGBM.
 def objective(trial, X, y):
     param_grid = {
-        "n_estimators": trial.suggest_categorical("n_estimators", [100, 10000]),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 10000),
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
-        "num_leaves": trial.suggest_int("num_leaves", 20, 3000, step=20),
+        "num_leaves": trial.suggest_int("num_leaves", 20, 1000, step=20),
         "max_depth": trial.suggest_int("max_depth", 3, 12),
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 200, 10000, step=100),
-        "max_bin": trial.suggest_int("max_bin", 200, 300),
-        "lambda_l1": trial.suggest_float("lambda_l1", 0, 100, step=5),
-        "lambda_l2": trial.suggest_float("lambda_l2", 0, 100, step=5),
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 200, 5000, step=100),
+        "max_bin": trial.suggest_int("max_bin", 200, 255),
+        "lambda_l1": trial.suggest_float("lambda_l1", 0, 10, step=1),
+        "lambda_l2": trial.suggest_float("lambda_l2", 0, 10, step=1),
         "min_gain_to_split": trial.suggest_float("min_gain_to_split", 0, 15),
-        "bagging_fraction": trial.suggest_float("bagging_fraction", 0.2, 0.95, step=0.1),
-        "bagging_freq": trial.suggest_categorical("bagging_freq", [1]),
-        "feature_fraction": trial.suggest_float("feature_fraction", 0.2, 0.95, step=0.1),
+        "bagging_fraction": trial.suggest_float("bagging_fraction", 0.4, 0.9, step=0.1),
+        "bagging_freq": trial.suggest_int("bagging_freq", 1, 7),
+        "feature_fraction": trial.suggest_float("feature_fraction", 0.4, 0.9, step=0.1),
         "objective": "multiclass",
         "num_class": 4,
         "verbosity": -1,
@@ -104,6 +108,7 @@ def adv_trainlightgbm(X, y, folder, labelencoder, n_trials=100):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     predictions = final_model.predict(X_test).argmax(axis=1)
     evaluation = evaluate(y_test, predictions, labelencoder)
+    showfeatureimportance(final_model, X_train)
 
     os.makedirs(folder, exist_ok=True)
 
@@ -128,7 +133,7 @@ def adv_trainlightgbm(X, y, folder, labelencoder, n_trials=100):
     return final_model
 
 
-# Evaluating the model
+# Evaluating the model's performance from actual final result and predictions
 def evaluate(y_test, y_pred, labelencoder):
     y_test = labelencoder.inverse_transform(y_test)
     y_pred = labelencoder.inverse_transform(y_pred)
@@ -185,7 +190,8 @@ def buildandstoremodel(days=None):
     if days is None:
         days = "total"
 
-    folder = os.path.join(LGBMCLASS, f'advclassifierdate{days}')
+    # folder = os.path.join(LGBMCLASS, f'advclassifierdate{days}')
+    folder = os.path.join(LGBMCLASS, f'400trialsclassifierdate{days}')
     os.makedirs(folder, exist_ok=True)
     if days == "total":
         days = 300
@@ -210,7 +216,7 @@ def buildandstoremodel(days=None):
     # visualizemodel(days, y_test, y_pred)
 
     # More advanced LGBM training with Optuna
-    lgbmclassifier = adv_trainlightgbm(X, y, folder, labelencoder, 100)
+    lgbmclassifier = adv_trainlightgbm(X, y, folder, labelencoder, 400)
 
 
 # Given a list of students and how many days into the course we are, return predictions of final result
@@ -251,13 +257,14 @@ def generate_predictions(days, studentidlist):
 
 # Evaluate model by retraining it with the best params in the folder
 def evaluateparamsmodel():
-    folder = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+    # folder = os.path.join(LGBMCLASS, f'advclassifierdatetotal')
+    # folder = os.path.join(LGBMCLASS, f'200trialsclassifierdatetotal')
     # folder = os.path.join(LGBMCLASS, f'archive/advclassifierdatetotal')
 
     # Load labelencoder
     labelencoder = joblib.load(os.path.join(folder, 'label_encoder.pkl'))
 
-    # Preprocess the data
+    # Preprocess the data SET DAYS
     merged_data = preprocess_oulad(300, None)
     # Encode the columns
     merged_data['final_result_encoded'] = labelencoder.transform(merged_data['final_result'])
@@ -281,6 +288,9 @@ def evaluateparamsmodel():
     # Make predictions
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     predictions = final_model.predict(X_test).argmax(axis=1)
+
+    # Get feature importance
+    showfeatureimportance(final_model, X_train)
     # evaluate model performance
     evaluation = evaluate(y_test, predictions, labelencoder)
     print(evaluation)

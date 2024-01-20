@@ -8,7 +8,6 @@ from lib_ml.ml_utils.lgbm2 import generate_predictions
 lgbmblueprint = Blueprint('lgbm', __name__, url_prefix='/api')
 
 
-
 # Returns list of student's predicted final results
 @lgbmblueprint.route('/predict', methods=['POST'])
 @jwt_required()
@@ -20,7 +19,7 @@ def get_predicted_result():
     student_id_list = request.json.get('student_ids')
     # print(student_id_list)
 
-    # Add sending date of module
+    # Hardcoded date of module
     days = 132
 
     predictions = generate_predictions(days, student_id_list)
@@ -29,8 +28,3 @@ def get_predicted_result():
         "message": "Final result predictions",
         "student_ids": predictions.tolist()
     })
-
-
-
-
-
