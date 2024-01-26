@@ -1,10 +1,11 @@
 # EngageTrack backend
 
-Read the README before contributing to this project
+Backend of prototype tool to analyze student engagement and predict student results using OULAD dataset(Kuzilek J., Hlosta M., Zdrahal Z. Open University Learning Analytics dataset Sci. Data 4:170171 doi: 10.1038/sdata.2017.171 (2017)).
+Frontend available here: https://github.com/Timorun/EngFrontend/
 
 ## Getting Started
 
-To get a local copy up and running follow these simple steps.
+To get a local copy up and running follow these simple steps in combination with the frontend.
 
 ### Prerequisites
 
@@ -46,7 +47,7 @@ To get a local copy up and running follow these simple steps.
    pip install -r requirements.txt
    ```
 
-## Running
+### Running
 
 1. Make sure you are in the virtual environment (env). Otherwise, activate the virtual environment
    - Windows:
@@ -70,3 +71,6 @@ To get a local copy up and running follow these simple steps.
     ```sh
    flask run
    ```
+
+## License
+This project is licensed under the MIT License - see the LICENSE.txt file for details.
